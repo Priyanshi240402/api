@@ -58,7 +58,7 @@ def fetch_and_store_youtube_data(channel_url, channelId):
     mycursor.close()
     mydb.close()
 
-@app.post("/fetch_youtube_data/{channelId}")
+@app.post("https://api-teal-mu.vercel.app/fetch_youtube_data/{channelId}")
 def fetch_youtube_data_by_id(channelId: str):
     channel_url = f'https://socialblade.com/youtube/channel/{channelId}'
     fetch_and_store_youtube_data(channel_url, channelId)
