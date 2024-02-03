@@ -1,23 +1,47 @@
-# api/fetch_youtube_data.py
-
+from flask import Flask, request, jsonify
 import mysql.connector
 import urllib.request
 from bs4 import BeautifulSoup
-from fastapi import FastAPI
 
-app = FastAPI()
+app = Flask(__name__)
 
 def scrape_channel_data(page_soup):
+    # Existing scrape_channel_data function
     # Extract data from the web scraping
     uploads = page_soup.findAll("span", {"id": "youtube-stats-header-uploads"})
     subs = page_soup.findAll("span", {"id": "youtube-stats-header-subs"})
     views = page_soup.findAll("span", {"id": "youtube-stats-header-views"})
 
-    # Assuming you want to return the text values of uploads, subscribers, and views
-    return [uploads[0].text if uploads else None, subs[0].text if subs else None, views[0].text if views else None]
+    # Add additional data scraping logic for the new columns
+    whatch_time = page_soup.findAll("span", {"id": "youtube-stats-header-whatch_time"})
+    total_likes = page_soup.findAll("span", {"id": "youtube-stats-header-total_likes"})
+    playlists = page_soup.findAll("span", {"id": "youtube-stats-header-playlists"})
+    audience_retention = page_soup.findAll("span", {"id": "youtube-stats-header-audience_retention"})
+    recent_videos = page_soup.findAll("span", {"id": "youtube-stats-header-recent_videos"})
+    audience_by_countries = page_soup.findAll("span", {"id": "youtube-stats-header-audience_by_countries"})
+    audience_by_demographics = page_soup.findAll("span", {"id": "youtube-stats-header-audience_by_demographics"})
+    traffic_source = page_soup.findAll("span", {"id": "youtube-stats-header-traffic_source"})
+    external_source = page_soup.findAll("span", {"id": "youtube-stats-header-external_source"})
+    audience_value = page_soup.findAll("span", {"id": "youtube-stats-header-audience"})
+
+    # Assuming you want to return the text values of uploads, subscribers, and country
+    return [
+        uploads[0].text if uploads else None,
+        subs[0].text if subs else None,
+        views[0].text if views else None,
+        whatch_time[0].text if whatch_time else None,
+        total_likes[0].text if total_likes else None,
+        playlists[0].text if playlists else None,
+        audience_retention[0].text if audience_retention else None,
+        recent_videos[0].text if recent_videos else None,
+        audience_by_countries[0].text if audience_by_countries else None,
+        audience_by_demographics[0].text if audience_by_demographics else None,
+        traffic_source[0].text if traffic_source else None,
+        external_source[0].text if external_source else None,
+        audience_value[0].text if audience_value else None
+    ]
 
 def fetch_and_store_youtube_data(channel_url, channelId):
-    # Fetch HTML content
     user_agent = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
     headers = {'User-Agent': user_agent}
 
@@ -26,40 +50,44 @@ def fetch_and_store_youtube_data(channel_url, channelId):
     page_html = uClient.read()
     uClient.close()
 
-    # Parsing HTML with BeautifulSoup
     page_soup = BeautifulSoup(page_html, 'html.parser')
 
-    # Your MySQL database credentials
     mydb = mysql.connector.connect(
         host="localhost",
-        database="staff",
+        database="youtube",
         user="root",
         password="Princy@123#"
     )
 
-    # Create a cursor object to interact with the database
     mycursor = mydb.cursor()
 
-    # Assuming you have a table named 'analysis' with columns (channel_id, videos_published, audience, views)
-    table_name = 'youtubeanalytics'
+    table_name = 'websap'
 
-    # Extract data from the scraped results
     scraped_data = scrape_channel_data(page_soup)
 
-    # Insert data into the MySQL table
-    sql = f"INSERT INTO {table_name} (channelId, videos_published, audience, views) VALUES (%s, %s, %s, %s)"
+    sql = f"INSERT INTO {table_name} (channelId, videos_published, audience, views, whatch_time, total_likes, playlists, audience_retention, recent_videos, audience_by_countries, audience_by_demographics, traffic_source, external_source) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
     scraped_data_with_channelId = [channelId] + scraped_data
-    mycursor.execute(sql, scraped_data_with_channelId)
+    mycursor.execute(sql, tuple(scraped_data_with_channelId[:13]))
 
-    # Commit the changes to the database
     mydb.commit()
 
-    # Close the database connection
     mycursor.close()
     mydb.close()
 
-@app.post("https://api-teal-mu.vercel.app/fetch_youtube_data/{channelId}")
-def fetch_youtube_data_by_id(channelId: str):
-    channel_url = f'https://socialblade.com/youtube/channel/{channelId}'
-    fetch_and_store_youtube_data(channel_url, channelId)
-    return {"message": "Data fetched and stored successfully!"}
+@app.route('/fetch_youtube_data', methods=['POST'])
+def fetch_youtube_data():
+    try:
+        data = request.json
+        channelId = data.get('channelId')
+
+        # Replace 'your_channel_url' with the actual URL pattern for your channel
+        channel_url = f'https://socialblade.com/youtube/channel/{channelId}'
+
+        fetch_and_store_youtube_data(channel_url, channelId)
+
+        return jsonify({"success": True, "message": "YouTube data fetched and stored successfully"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+if __name__ == '__main__':
+    app.run(debug=True)
