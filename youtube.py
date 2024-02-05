@@ -2,8 +2,37 @@ from flask import Flask, request, jsonify
 import mysql.connector
 import urllib.request
 from bs4 import BeautifulSoup
+import requests
+import json
 
 app = Flask(__name__)
+
+def send_data_to_external_api(channelId, videos_published, audience, views, whatch_time, total_likes, playlists, audience_retention, recent_videos, audience_by_countries, audience_by_demographics, traffic_source, external_source):
+    url = "https://api.promulgateinnovations.com/api/v1/setYoutubeAnalytics"
+    payload = {
+        "channelId": channelId,
+        "views": views,
+        "whatch_time": whatch_time,
+        "videos_published": videos_published,
+        "total_likes": total_likes,
+        "playlists": playlists,
+        "audience_retention": audience_retention,
+        "recent_videos": recent_videos,
+        "audience_by_countries": audience_by_countries,
+        "audience_by_demographics": audience_by_demographics,
+        "traffic_source": traffic_source,
+        "external_source": external_source,
+        "audience": audience,  # Include the audience variable here
+        "addedBy": "Amit"
+    }
+    headers = {
+        'Authorization': 'Basic cHJvbXVsZ2F0ZTpwcm9tdWxnYXRl',
+        'Content-Type': 'application/json'
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+
+    print(response.text)
 
 def scrape_channel_data(page_soup):
     # Existing scrape_channel_data function
@@ -45,34 +74,40 @@ def fetch_and_store_youtube_data(channel_url, channelId):
     user_agent = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
     headers = {'User-Agent': user_agent}
 
-    request = urllib.request.Request(channel_url, None, headers)
-    uClient = urllib.request.urlopen(request)
-    page_html = uClient.read()
-    uClient.close()
+    try:
+        request = urllib.request.Request(channel_url, None, headers)
+        uClient = urllib.request.urlopen(request)
+        page_html = uClient.read()
+        uClient.close()
 
-    page_soup = BeautifulSoup(page_html, 'html.parser')
+        page_soup = BeautifulSoup(page_html, 'html.parser')
 
-    mydb = mysql.connector.connect(
-        host="localhost",
-        database="youtube",
-        user="root",
-        password="Princy@123#"
-    )
+        mydb = mysql.connector.connect(
+            host="localhost",
+            database="youtube",
+            user="root",
+            password="Princy@123#"
+        )
 
-    mycursor = mydb.cursor()
+        mycursor = mydb.cursor()
 
-    table_name = 'websap'
+        table_name = 'websap'
 
-    scraped_data = scrape_channel_data(page_soup)
+        scraped_data = scrape_channel_data(page_soup)
 
-    sql = f"INSERT INTO {table_name} (channelId, videos_published, audience, views, whatch_time, total_likes, playlists, audience_retention, recent_videos, audience_by_countries, audience_by_demographics, traffic_source, external_source) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-    scraped_data_with_channelId = [channelId] + scraped_data
-    mycursor.execute(sql, tuple(scraped_data_with_channelId[:13]))
+        sql = f"INSERT INTO {table_name} (channelId, videos_published, audience, views, whatch_time, total_likes, playlists, audience_retention, recent_videos, audience_by_countries, audience_by_demographics, traffic_source, external_source) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        scraped_data_with_channelId = [channelId] + scraped_data
+        mycursor.execute(sql, tuple(scraped_data_with_channelId[:13]))
 
-    mydb.commit()
+        mydb.commit()
 
-    mycursor.close()
-    mydb.close()
+        mycursor.close()
+        mydb.close()
+
+        send_data_to_external_api(channelId, *scraped_data)
+
+    except Exception as e:
+        print("Error:", e)
 
 @app.route('/fetch_youtube_data', methods=['POST'])
 def fetch_youtube_data():
@@ -91,3 +126,4 @@ def fetch_youtube_data():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
