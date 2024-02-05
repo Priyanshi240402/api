@@ -23,7 +23,7 @@ def send_data_to_external_api(channelId, videos_published, audience, views, what
         "traffic_source": traffic_source,
         "external_source": external_source,
         "audience": audience,  # Include the audience variable here
-        "addedBy": "Amit"
+        "addedBy": "Priyanshi"
     }
     headers = {
         'Authorization': 'Basic cHJvbXVsZ2F0ZTpwcm9tdWxnYXRl',
